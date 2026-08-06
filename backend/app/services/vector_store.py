@@ -1,18 +1,15 @@
 import numpy as np
-from sentence_transformers import SentenceTransformer
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
+from app.services.embeddings import create_embeddings
 
 documents = []
 
-
 def add_documents(chunks):
-    embeddings = model.encode(chunks)
+    embeddings = create_embeddings(chunks)
 
     for text, embedding in zip(chunks, embeddings):
         documents.append({
             "text": text,
-            "embedding": embedding.tolist()
+            "embedding": embedding
         })
 
     return len(documents)
@@ -22,7 +19,7 @@ def search_documents(question, top_k=3):
     if len(documents) == 0:
         return []
 
-    question_embedding = model.encode(question)
+    question_embedding = create_embeddings([question])[0]
 
     scores = []
 
