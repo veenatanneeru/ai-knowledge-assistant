@@ -1,15 +1,22 @@
 from fastapi import FastAPI
-from app.api.upload import router as upload_router
-from app.api.ask import router as ask_router
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.routes import router
 
 app = FastAPI(
     title="AI Knowledge Assistant",
+    description="Upload PDFs and ask questions using RAG",
     version="1.0.0"
 )
 
-@app.get("/")
-def home():
-    return {"message": "Welcome to AI Knowledge Assistant!"}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app.include_router(upload_router)
-app.include_router(ask_router)
+app.include_router(router, prefix="/api")
+
+@app.get("/")
+async def root():
+    return {"message": "AI Knowledge Assistant API is running!"}

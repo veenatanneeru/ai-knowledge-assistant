@@ -1,13 +1,15 @@
-from sentence_transformers import SentenceTransformer
+import ollama
 
-model = None
-
-def get_model():
-    global model
-    if model is None:
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-    return model
-
-def create_embeddings(chunks):
-    model = get_model()
-    return model.encode(chunks).tolist()
+def create_embeddings(texts: list[str]) -> list[list[float]]:
+    if not texts:
+        return []
+    
+    embeddings = []
+    for text in texts:
+        response = ollama.embeddings(
+            model="nomic-embed-text",
+            prompt=text
+        )
+        embeddings.append(response["embedding"])
+    
+    return embeddings

@@ -1,38 +1,39 @@
-import numpy as np
-from app.services.embeddings import create_embeddings
+import chromadb
+import os
 
-documents = []
+CHROMA_PATH = os.path.join(os.path.dirname(__file__), "../../../vector_store")
+client = chromadb.PersistentClient(path=CHROMA_PATH)
+collection = client.get_or_create_collection(
+    name="knowledge_base",
+    metadata={"hnsw:space": "cosine"}
+)
 
-def add_documents(chunks):
-    embeddings = create_embeddings(chunks)
+def add_documents(chunks: list[str], embeddings: list[list[float]], doc_id: str):
+    ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
+    collection.add(
+        documents=chunks,
+        embeddings=embeddings,
+        ids=ids,
+        metadatas=[{"doc_id": doc_id, "chunk_index": i} for i in range(len(chunks))]
+    )
+    return len(chunks)
 
-    for text, embedding in zip(chunks, embeddings):
-        documents.append({
-            "text": text,
-            "embedding": embedding
-        })
-
-    return len(documents)
-
-
-def search_documents(question, top_k=3):
-    if len(documents) == 0:
+def search_documents(question: str, question_embedding: list[float], top_k: int = 3):
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        n_results=min(top_k, collection.count() or 1)
+    )
+    if not results["documents"] or not results["documents"][0]:
         return []
+    return results["documents"][0]
 
-    question_embedding = create_embeddings([question])[0]
+def get_document_count():
+    return collection.count()
 
-    scores = []
-
-    for doc in documents:
-        embedding = np.array(doc["embedding"])
-
-        score = np.dot(question_embedding, embedding) / (
-            np.linalg.norm(question_embedding)
-            * np.linalg.norm(embedding)
-        )
-
-        scores.append((score, doc))
-
-    scores.sort(key=lambda x: x[0], reverse=True)
-
-    return [doc for score, doc in scores[:top_k]]
+def clear_collection():
+    global collection
+    client.delete_collection("knowledge_base")
+    collection = client.get_or_create_collection(
+        name="knowledge_base",
+        metadata={"hnsw:space": "cosine"}
+    )

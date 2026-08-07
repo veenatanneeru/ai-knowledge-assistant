@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Knowledge Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">🧠 AI Knowledge Assistant</div>
+      <div class="status-bar">
+        <span id="doc-count">0 chunks indexed</span>
+        <button id="reset-btn" class="btn-danger">Clear All</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <!-- Upload Panel -->
+      <div class="panel upload-panel">
+        <h2>📄 Upload Documents</h2>
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon">⬆️</div>
+          <p>Drop PDF here or click to browse</p>
+          <input type="file" id="file-input" accept=".pdf" hidden />
+          <button class="btn-primary" onclick="document.getElementById('file-input').click()">
+            Choose PDF
+          </button>
+        </div>
+        <div id="upload-status"></div>
+        <div id="file-list" class="file-list"></div>
+      </div>
+
+      <!-- Chat Panel -->
+      <div class="panel chat-panel">
+        <h2>💬 Ask Questions</h2>
+        <div class="chat-window" id="chat-window">
+          <div class="message assistant-msg">
+            <strong>Assistant:</strong> Hello! Upload a PDF and ask me anything about it.
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input
+            type="text"
+            id="question-input"
+            placeholder="Ask a question about your documents..."
+            onkeydown="if(event.key==='Enter') sendQuestion()"
+          />
+          <button class="btn-primary" onclick="sendQuestion()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
