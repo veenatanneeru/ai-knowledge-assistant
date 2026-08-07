@@ -1,109 +1,58 @@
-# AI Knowledge Assistant (RAG Chatbot)
+# 🧠 AI Knowledge Assistant
 
-An AI-powered Retrieval-Augmented Generation (RAG) chatbot that enables users to upload PDF documents and ask questions using natural language. The application processes documents, generates embeddings, retrieves relevant context using FAISS, and produces accurate answers using Llama 3.2 through Ollama.
+> Upload any PDF, TXT, DOCX, or URL and have a conversation with it using RAG — completely free, runs locally!
 
----
+![Demo](demo.png)
 
-## Features
+## ✨ Features
 
-- Upload PDF documents
-- Automatic text extraction
-- Document chunking
-- Semantic search using FAISS
-- Sentence Transformer embeddings
-- RAG pipeline with LangChain
-- Question answering using Llama 3.2
-- FastAPI REST API
-- Interactive Swagger UI
+- 📄 Multi-format support — PDF, TXT, DOCX, and URLs
+- 🔍 Semantic search — finds relevant context using ChromaDB
+- 💬 Multi-turn chat — remembers conversation history
+- 📝 Auto-summary — instantly summarizes uploaded documents
+- 📄 Export chat as PDF — download your conversation
+- 🗂️ Multiple knowledge bases — organize documents by topic
+- 🌙 Dark/Light mode toggle
+- 💾 Persistent chat history saved across sessions
+- 🆓 100% free — uses Llama 3.2 via Ollama, no API costs
 
----
+## 🏗️ How It Works
 
-## Tech Stack
+PDF/TXT/DOCX/URL → Text Extraction → Chunking → Embeddings → ChromaDB → Question → Similarity Search → Llama 3.2 → Answer
 
-- Python
-- FastAPI
-- LangChain
-- FAISS
-- Sentence Transformers
-- Ollama
-- Llama 3.2
-- NumPy
-- PyPDF
-- Uvicorn
+## 🛠️ Tech Stack
 
----
+- Backend: FastAPI + Python
+- Embeddings: nomic-embed-text via Ollama
+- Vector Store: ChromaDB
+- LLM: Llama 3.2 via Ollama
+- Frontend: Vanilla JS + CSS
 
-## Project Structure
+## 🚀 Quick Start
 
-```text
-backend/
-│
-├── app/
-│   ├── api/
-│   ├── services/
-│   └── main.py
-│
-├── images/
-├── requirements.txt
-└── .gitignore
-```
+Install Ollama from https://ollama.ai
 
----
+Then run:
 
-## API Endpoints
-
-### Upload PDF
-
-```
-POST /upload
-```
-
-### Ask Question
-
-```
-POST /ask
-```
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/veenatanneeru/ai-knowledge-assistant.git
-
-cd ai-knowledge-assistant/backend
-
+git clone https://github.com/veenatanneeru/ai-knowledge-assistant
+cd ai-knowledge-assistant
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
+ollama pull llama3.2
+ollama pull nomic-embed-text
 
-uvicorn app.main:app --reload
-```
+Terminal 1:
+cd backend
+uvicorn app.main:app --reload --port 8000
 
-Open:
+Terminal 2:
+cd frontend
+python3 -m http.server 3000
 
-```
-http://127.0.0.1:8000/docs
-```
+Open http://127.0.0.1:3000 in Chrome
 
----
+## 👩‍💻 Author
 
-## Screenshots
-
-(Add your screenshots here.)
-
----
-
-## Future Improvements
-
-- Multi-document support
-- Chat history
-- Streaming responses
-- Source citations
-- Docker support
-- Cloud deployment
-- User authentication
-
----
-
-## Author
-
-**Veena Tanneeru**
+Veena Tanneeru — AI and ML Engineer
+GitHub: https://github.com/veenatanneeru
