@@ -25,22 +25,21 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
 def extract_text_from_url(url: str) -> str:
     response = requests.get(url, timeout=10)
     soup = BeautifulSoup(response.text, "html.parser")
-    # Remove scripts and styles
     for tag in soup(["script", "style", "nav", "footer"]):
         tag.decompose()
     return soup.get_text(separator="\n", strip=True)
 
-def ingest_file(file_bytes: bytes, filename: str) -> dict:
-    """Support PDF, TXT, DOCX files"""
-    
+def extract_text(file_bytes: bytes, filename: str) -> str:
     if filename.endswith(".pdf"):
-        full_text = extract_text_from_pdf(file_bytes)
+        return extract_text_from_pdf(file_bytes)
     elif filename.endswith(".txt"):
-        full_text = extract_text_from_txt(file_bytes)
+        return extract_text_from_txt(file_bytes)
     elif filename.endswith(".docx"):
-        full_text = extract_text_from_docx(file_bytes)
-    else:
-        return {"success": False, "error": "Unsupported file type"}
+        return extract_text_from_docx(file_bytes)
+    return ""
+
+def ingest_file(file_bytes: bytes, filename: str) -> dict:
+    full_text = extract_text(file_bytes, filename)
     
     if not full_text.strip():
         return {"success": False, "error": "Could not extract text from file"}
@@ -58,7 +57,6 @@ def ingest_file(file_bytes: bytes, filename: str) -> dict:
     }
 
 def ingest_url(url: str) -> dict:
-    """Ingest text from a URL"""
     try:
         full_text = extract_text_from_url(url)
         if not full_text.strip():
@@ -77,6 +75,29 @@ def ingest_url(url: str) -> dict:
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+async def summarize_document(file_bytes: bytes, filename: str) -> dict:
+    """Auto-summarize a document"""
+    full_text = extract_text(file_bytes, filename)
+    
+    if not full_text.strip():
+        return {"success": False, "error": "Could not extract text"}
+    
+    # Use first 3000 chars for summary
+    preview = full_text[:3000]
+    
+    summary = generate_answer(
+        question="Please provide a concise summary of this document in 5-7 bullet points.",
+        context_chunks=[preview],
+        chat_history=None
+    )
+    
+    return {
+        "success": True,
+        "filename": filename,
+        "summary": summary,
+        "total_chars": len(full_text)
+    }
 
 def answer_question(question: str, chat_history: list = None) -> dict:
     question_embedding = create_embeddings([question])[0]

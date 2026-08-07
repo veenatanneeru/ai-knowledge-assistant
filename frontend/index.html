@@ -18,11 +18,24 @@
     </header>
 
     <div class="main">
-      <!-- Upload Panel -->
+      <!-- Left Panel -->
       <div class="panel upload-panel">
-        <h2>📄 Upload Documents</h2>
+
+        <!-- Knowledge Base Selector -->
+        <h2>🗂️ Knowledge Base</h2>
+        <div class="kb-row">
+          <select id="kb-select" class="kb-select">
+            <option value="default">Default</option>
+          </select>
+          <button class="btn-small" onclick="showNewKB()">+ New</button>
+        </div>
+        <div id="new-kb-row" class="url-row" style="display:none">
+          <input type="text" id="kb-name-input" placeholder="e.g. Medical, Legal..." />
+          <button class="btn-primary" onclick="createKB()">Create</button>
+        </div>
 
         <!-- File Upload -->
+        <h2>📄 Upload Documents</h2>
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon">⬆️</div>
           <p>Drop PDF, TXT, or DOCX here</p>
@@ -33,19 +46,20 @@
         </div>
 
         <!-- URL Upload -->
-        <div class="url-section">
-          <h2>🌐 Or Add a URL</h2>
-          <div class="url-row">
-            <input
-              type="text"
-              id="url-input"
-              placeholder="https://example.com/article"
-            />
-            <button class="btn-primary" onclick="uploadURL()">Add</button>
-          </div>
+        <h2>🌐 Add a URL</h2>
+        <div class="url-row">
+          <input type="text" id="url-input" placeholder="https://example.com/article" />
+          <button class="btn-primary" onclick="uploadURL()">Add</button>
         </div>
 
         <div id="upload-status"></div>
+
+        <!-- Summary Box -->
+        <div id="summary-box" class="summary-box" style="display:none">
+          <h2>📝 Document Summary</h2>
+          <div id="summary-text"></div>
+        </div>
+
         <div id="file-list" class="file-list"></div>
       </div>
 
@@ -53,7 +67,10 @@
       <div class="panel chat-panel">
         <div class="chat-header">
           <h2>💬 Ask Questions</h2>
-          <button id="clear-chat-btn" class="btn-small">Clear Chat</button>
+          <div class="chat-actions">
+            <button id="export-btn" class="btn-small">📄 Export PDF</button>
+            <button id="clear-chat-btn" class="btn-small">Clear Chat</button>
+          </div>
         </div>
         <div class="chat-window" id="chat-window">
           <div class="message assistant-msg">

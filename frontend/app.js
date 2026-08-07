@@ -1,289 +1,319 @@
-/* ── Theme Variables ── */
-:root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #1e2235;
-  --border: #2d3148;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-faint: #64748b;
-  --accent: #7c6af7;
-  --accent-hover: #6a57e8;
-  --success: #4ade80;
-  --error: #f87171;
-  --user-msg: #7c6af7;
+const API = "http://localhost:8000/api";
+
+// ── Load saved data ──
+let chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+let uploadedFiles = JSON.parse(localStorage.getItem("uploadedFiles") || "[]");
+let theme = localStorage.getItem("theme") || "dark";
+let currentKB = localStorage.getItem("currentKB") || "default";
+
+// ── Apply saved theme ──
+document.documentElement.setAttribute("data-theme", theme);
+document.getElementById("theme-toggle").textContent = theme === "dark" ? "🌙" : "☀️";
+
+// ── Restore chat ──
+function restoreChat() {
+  const win = document.getElementById("chat-window");
+  win.innerHTML = "";
+  if (chatHistory.length === 0) {
+    win.innerHTML = `<div class="message assistant-msg">
+      <strong>Assistant:</strong> Hello! Upload a PDF, TXT, DOCX, or URL and ask me anything.
+    </div>`;
+    return;
+  }
+  chatHistory.forEach(msg => {
+    addMessage(msg.content, msg.role === "user" ? "user" : "assistant", null, false);
+  });
 }
 
-[data-theme="light"] {
-  --bg: #f1f5f9;
-  --surface: #ffffff;
-  --surface2: #f8fafc;
-  --border: #e2e8f0;
-  --text: #1e293b;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
-  --accent: #6d55f5;
-  --accent-hover: #5a45e0;
-  --success: #16a34a;
-  --error: #dc2626;
-  --user-msg: #6d55f5;
+// ── Render file list ──
+function renderFileList() {
+  const list = document.getElementById("file-list");
+  list.innerHTML = uploadedFiles.map(f =>
+    `<div class="file-item">📄 ${f}</div>`
+  ).join("");
+  localStorage.setItem("uploadedFiles", JSON.stringify(uploadedFiles));
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  transition: background 0.3s, color 0.3s;
+// ── Health check ──
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API}/health`);
+    const data = await res.json();
+    document.getElementById("doc-count").textContent =
+      `${data.documents_indexed} chunks indexed`;
+    updateKBDropdown(data.collections || []);
+  } catch {
+    document.getElementById("doc-count").textContent = "API offline";
+  }
 }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+// ── Knowledge Base ──
+function updateKBDropdown(collections) {
+  const select = document.getElementById("kb-select");
+  const current = select.value;
+  select.innerHTML = "";
+  const all = collections.length > 0 ? collections : ["default"];
+  all.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    if (name === currentKB) opt.selected = true;
+    select.appendChild(opt);
+  });
 }
 
-.logo { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+function showNewKB() {
+  const row = document.getElementById("new-kb-row");
+  row.style.display = row.style.display === "none" ? "flex" : "none";
 }
 
-.main {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  height: calc(100vh - 60px);
+async function createKB() {
+  const name = document.getElementById("kb-name-input").value.trim();
+  if (!name) return;
+
+  await fetch(`${API}/collection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+
+  currentKB = name;
+  localStorage.setItem("currentKB", name);
+  document.getElementById("new-kb-row").style.display = "none";
+  document.getElementById("kb-name-input").value = "";
+  checkHealth();
 }
 
-.panel {
-  padding: 24px;
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
+document.getElementById("kb-select").addEventListener("change", async (e) => {
+  currentKB = e.target.value;
+  localStorage.setItem("currentKB", currentKB);
+  await fetch(`${API}/collection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: currentKB })
+  });
+  checkHealth();
+});
+
+// ── Theme toggle ──
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  theme = theme === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", theme);
+  document.getElementById("theme-toggle").textContent = theme === "dark" ? "🌙" : "☀️";
+  localStorage.setItem("theme", theme);
+});
+
+// ── File Upload ──
+document.getElementById("file-input").addEventListener("change", (e) => {
+  if (e.target.files[0]) uploadFile(e.target.files[0]);
+});
+
+const dropZone = document.getElementById("drop-zone");
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.classList.add("dragover");
+});
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+
+async function uploadFile(file) {
+  const status = document.getElementById("upload-status");
+  status.className = "loading";
+  status.textContent = `⏳ Uploading ${file.name}...`;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/upload`, { method: "POST", body: formData });
+    const data = await res.json();
+
+    if (res.ok) {
+      status.className = "success";
+      status.textContent = `✅ ${data.message}`;
+      uploadedFiles.push(file.name);
+      renderFileList();
+      checkHealth();
+      // Auto summarize
+      autoSummarize(file);
+    } else {
+      status.className = "error";
+      status.textContent = `❌ Error: ${data.detail}`;
+    }
+  } catch {
+    status.className = "error";
+    status.textContent = "❌ Could not reach API.";
+  }
 }
 
-.panel h2 { font-size: 1rem; color: var(--text-muted); font-weight: 600; }
+// ── Auto Summary ──
+async function autoSummarize(file) {
+  const box = document.getElementById("summary-box");
+  const text = document.getElementById("summary-text");
+  box.style.display = "block";
+  text.textContent = "⏳ Generating summary...";
 
-/* Drop Zone */
-.drop-zone {
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 28px 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface2);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/summarize`, { method: "POST", body: formData });
+    const data = await res.json();
+    if (res.ok) {
+      text.innerHTML = data.summary.replace(/\n/g, "<br>");
+    } else {
+      text.textContent = "Could not generate summary.";
+    }
+  } catch {
+    text.textContent = "Could not reach API.";
+  }
 }
 
-.drop-zone:hover, .drop-zone.dragover {
-  border-color: var(--accent);
-  background: rgba(124, 106, 247, 0.08);
+// ── URL Upload ──
+async function uploadURL() {
+  const input = document.getElementById("url-input");
+  const url = input.value.trim();
+  if (!url) return;
+
+  const status = document.getElementById("upload-status");
+  status.className = "loading";
+  status.textContent = `⏳ Loading URL...`;
+
+  try {
+    const res = await fetch(`${API}/upload-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      status.className = "success";
+      status.textContent = `✅ ${data.message}`;
+      uploadedFiles.push(url);
+      renderFileList();
+      checkHealth();
+      input.value = "";
+    } else {
+      status.className = "error";
+      status.textContent = `❌ Error: ${data.detail}`;
+    }
+  } catch {
+    status.className = "error";
+    status.textContent = "❌ Could not reach API.";
+  }
 }
 
-.drop-icon { font-size: 2rem; }
-.drop-zone p { font-size: 0.85rem; color: var(--text-faint); }
+// ── Chat ──
+async function sendQuestion() {
+  const input = document.getElementById("question-input");
+  const question = input.value.trim();
+  if (!question) return;
 
-/* URL Section */
-.url-section { display: flex; flex-direction: column; gap: 8px; }
+  addMessage(question, "user");
+  input.value = "";
 
-.url-row {
-  display: flex;
-  gap: 8px;
+  const thinking = document.createElement("div");
+  thinking.className = "thinking";
+  thinking.textContent = "🤔 Thinking...";
+  document.getElementById("chat-window").appendChild(thinking);
+  scrollChat();
+
+  try {
+    const res = await fetch(`${API}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, chat_history: chatHistory })
+    });
+    const data = await res.json();
+    thinking.remove();
+    addMessage(data.answer, "assistant", data.sources_used);
+  } catch {
+    thinking.remove();
+    addMessage("❌ Error: Could not reach the server.", "assistant");
+  }
 }
 
-.url-row input {
-  flex: 1;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: var(--text);
-  font-size: 0.85rem;
-  outline: none;
+function addMessage(text, role, sources = null, save = true) {
+  const win = document.getElementById("chat-window");
+  const div = document.createElement("div");
+  div.className = `message ${role}-msg`;
+
+  if (role === "assistant") {
+    div.innerHTML = `<strong>Assistant:</strong> ${text}` +
+      (sources ? `<div class="sources-tag">📚 ${sources} source chunk(s) used</div>` : "");
+  } else {
+    div.textContent = text;
+  }
+
+  win.appendChild(div);
+  scrollChat();
+
+  if (save) {
+    chatHistory.push({ role: role === "user" ? "user" : "assistant", content: text });
+    if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+    localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+  }
 }
 
-.url-row input:focus { border-color: var(--accent); }
-.url-row input::placeholder { color: var(--text-faint); }
-
-/* Buttons */
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: background 0.2s;
-  white-space: nowrap;
+function scrollChat() {
+  const win = document.getElementById("chat-window");
+  win.scrollTop = win.scrollHeight;
 }
 
-.btn-primary:hover { background: var(--accent-hover); }
+// ── Export Chat as PDF ──
+document.getElementById("export-btn").addEventListener("click", async () => {
+  if (chatHistory.length === 0) {
+    alert("No chat history to export!");
+    return;
+  }
 
-.btn-danger {
-  background: transparent;
-  color: var(--error);
-  border: 1px solid var(--error);
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
+  try {
+    const res = await fetch(`${API}/export-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(chatHistory)
+    });
 
-.btn-danger:hover { background: rgba(248, 113, 113, 0.1); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "chat-export.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert("Could not export chat.");
+  }
+});
 
-.btn-icon {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
+// ── Clear Chat ──
+document.getElementById("clear-chat-btn").addEventListener("click", () => {
+  chatHistory = [];
+  localStorage.removeItem("chatHistory");
+  restoreChat();
+});
 
-.btn-icon:hover { border-color: var(--accent); }
+// ── Reset Knowledge Base ──
+document.getElementById("reset-btn").addEventListener("click", async () => {
+  if (!confirm("Clear all indexed documents?")) return;
+  await fetch(`${API}/reset`, { method: "DELETE" });
+  uploadedFiles = [];
+  chatHistory = [];
+  localStorage.removeItem("chatHistory");
+  localStorage.removeItem("uploadedFiles");
+  renderFileList();
+  checkHealth();
+  restoreChat();
+  document.getElementById("summary-box").style.display = "none";
+});
 
-.btn-small {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.78rem;
-}
-
-.btn-small:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Status */
-#upload-status {
-  font-size: 0.85rem;
-  padding: 8px 12px;
-  border-radius: 6px;
-  display: none;
-}
-
-#upload-status.success {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--success);
-  display: block;
-}
-
-#upload-status.error {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--error);
-  display: block;
-}
-
-#upload-status.loading {
-  background: rgba(124, 106, 247, 0.15);
-  color: var(--accent);
-  display: block;
-}
-
-/* File List */
-.file-list { display: flex; flex-direction: column; gap: 8px; }
-
-.file-item {
-  background: var(--surface2);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  border-left: 3px solid var(--accent);
-  word-break: break-all;
-}
-
-/* Chat */
-.chat-panel { border-right: none; }
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.chat-window {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 8px 0;
-  max-height: calc(100vh - 200px);
-}
-
-.message {
-  padding: 14px 16px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  max-width: 88%;
-}
-
-.user-msg {
-  background: var(--user-msg);
-  color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 4px;
-}
-
-.assistant-msg {
-  background: var(--surface2);
-  color: var(--text);
-  align-self: flex-start;
-  border-bottom-left-radius: 4px;
-}
-
-.assistant-msg strong { color: var(--accent); display: block; margin-bottom: 6px; }
-
-.chat-input-row {
-  display: flex;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.chat-input-row input {
-  flex: 1;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 0.9rem;
-  outline: none;
-}
-
-.chat-input-row input:focus { border-color: var(--accent); }
-.chat-input-row input::placeholder { color: var(--text-faint); }
-
-.thinking {
-  color: var(--accent);
-  font-style: italic;
-  font-size: 0.85rem;
-  padding: 8px;
-}
-
-.sources-tag {
-  margin-top: 8px;
-  font-size: 0.78rem;
-  color: var(--text-faint);
-}
+// ── Init ──
+restoreChat();
+renderFileList();
+checkHealth();
