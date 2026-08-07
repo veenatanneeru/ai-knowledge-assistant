@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -10,8 +10,9 @@
   <div class="app">
     <header>
       <div class="logo">🧠 AI Knowledge Assistant</div>
-      <div class="status-bar">
+      <div class="header-right">
         <span id="doc-count">0 chunks indexed</span>
+        <button id="theme-toggle" class="btn-icon">🌙</button>
         <button id="reset-btn" class="btn-danger">Clear All</button>
       </div>
     </header>
@@ -20,24 +21,43 @@
       <!-- Upload Panel -->
       <div class="panel upload-panel">
         <h2>📄 Upload Documents</h2>
+
+        <!-- File Upload -->
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon">⬆️</div>
-          <p>Drop PDF here or click to browse</p>
-          <input type="file" id="file-input" accept=".pdf" hidden />
+          <p>Drop PDF, TXT, or DOCX here</p>
+          <input type="file" id="file-input" accept=".pdf,.txt,.docx" hidden />
           <button class="btn-primary" onclick="document.getElementById('file-input').click()">
-            Choose PDF
+            Choose File
           </button>
         </div>
+
+        <!-- URL Upload -->
+        <div class="url-section">
+          <h2>🌐 Or Add a URL</h2>
+          <div class="url-row">
+            <input
+              type="text"
+              id="url-input"
+              placeholder="https://example.com/article"
+            />
+            <button class="btn-primary" onclick="uploadURL()">Add</button>
+          </div>
+        </div>
+
         <div id="upload-status"></div>
         <div id="file-list" class="file-list"></div>
       </div>
 
       <!-- Chat Panel -->
       <div class="panel chat-panel">
-        <h2>💬 Ask Questions</h2>
+        <div class="chat-header">
+          <h2>💬 Ask Questions</h2>
+          <button id="clear-chat-btn" class="btn-small">Clear Chat</button>
+        </div>
         <div class="chat-window" id="chat-window">
           <div class="message assistant-msg">
-            <strong>Assistant:</strong> Hello! Upload a PDF and ask me anything about it.
+            <strong>Assistant:</strong> Hello! Upload a PDF, TXT, DOCX, or URL and ask me anything about it.
           </div>
         </div>
         <div class="chat-input-row">

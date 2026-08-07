@@ -4,25 +4,50 @@ from app.services.llm import generate_answer
 from app.services.text_splitter import split_text
 import pypdf
 import io
+import requests
+from bs4 import BeautifulSoup
+import docx
 
-def ingest_pdf(file_bytes: bytes, filename: str) -> dict:
-    # 1. Extract text from PDF
+def extract_text_from_pdf(file_bytes: bytes) -> str:
     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
-    full_text = ""
+    text = ""
     for page in reader.pages:
-        full_text += page.extract_text() + "\n"
+        text += page.extract_text() + "\n"
+    return text
+
+def extract_text_from_txt(file_bytes: bytes) -> str:
+    return file_bytes.decode("utf-8", errors="ignore")
+
+def extract_text_from_docx(file_bytes: bytes) -> str:
+    doc = docx.Document(io.BytesIO(file_bytes))
+    return "\n".join([para.text for para in doc.paragraphs])
+
+def extract_text_from_url(url: str) -> str:
+    response = requests.get(url, timeout=10)
+    soup = BeautifulSoup(response.text, "html.parser")
+    # Remove scripts and styles
+    for tag in soup(["script", "style", "nav", "footer"]):
+        tag.decompose()
+    return soup.get_text(separator="\n", strip=True)
+
+def ingest_file(file_bytes: bytes, filename: str) -> dict:
+    """Support PDF, TXT, DOCX files"""
+    
+    if filename.endswith(".pdf"):
+        full_text = extract_text_from_pdf(file_bytes)
+    elif filename.endswith(".txt"):
+        full_text = extract_text_from_txt(file_bytes)
+    elif filename.endswith(".docx"):
+        full_text = extract_text_from_docx(file_bytes)
+    else:
+        return {"success": False, "error": "Unsupported file type"}
     
     if not full_text.strip():
-        return {"success": False, "error": "Could not extract text from PDF"}
+        return {"success": False, "error": "Could not extract text from file"}
     
-    # 2. Split into chunks
     chunks = split_text(full_text, chunk_size=400, overlap=80)
-    
-    # 3. Create embeddings
     embeddings = create_embeddings(chunks)
-    
-    # 4. Store in ChromaDB
-    doc_id = filename.replace(" ", "_").replace(".pdf", "")
+    doc_id = filename.replace(" ", "_").replace(".", "_")
     count = add_documents(chunks, embeddings, doc_id)
     
     return {
@@ -32,14 +57,30 @@ def ingest_pdf(file_bytes: bytes, filename: str) -> dict:
         "total_chars": len(full_text)
     }
 
+def ingest_url(url: str) -> dict:
+    """Ingest text from a URL"""
+    try:
+        full_text = extract_text_from_url(url)
+        if not full_text.strip():
+            return {"success": False, "error": "Could not extract text from URL"}
+        
+        chunks = split_text(full_text, chunk_size=400, overlap=80)
+        embeddings = create_embeddings(chunks)
+        doc_id = url.replace("https://", "").replace("http://", "").replace("/", "_")[:50]
+        count = add_documents(chunks, embeddings, doc_id)
+        
+        return {
+            "success": True,
+            "filename": url,
+            "chunks_created": count,
+            "total_chars": len(full_text)
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def answer_question(question: str, chat_history: list = None) -> dict:
-    # 1. Embed the question
     question_embedding = create_embeddings([question])[0]
-    
-    # 2. Find relevant chunks
     context_chunks = search_documents(question, question_embedding, top_k=4)
-    
-    # 3. Generate answer
     answer = generate_answer(question, context_chunks, chat_history)
     
     return {
